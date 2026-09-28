@@ -21,9 +21,9 @@ export function tryDateTime(command: string, now: Date): SkillResult | null {
     skill: 'datetime',
     response:
       wantsDate && wantsTime
-        ? `It is ${time} on ${date}.`
+        ? `It's ${time}, ${date}.`
         : wantsDate
           ? `Today is ${date}.`
-          : `It is ${time}.`,
+          : `It's ${time}.`,
   };
 }

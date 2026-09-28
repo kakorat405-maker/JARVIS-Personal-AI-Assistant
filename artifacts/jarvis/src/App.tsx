@@ -19,6 +19,10 @@ import { routeCommand } from '@/skills/router';
 import { loadNotes, loadTasks, saveNotes, saveTasks } from '@/skills/storage';
 import type { JarvisNote, JarvisTask } from '@/skills/types';
 import type { JarvisSpeechRecognition as BrowserSpeechRecognition } from '@/types/speech-recognition';
+import {
+  createBrowserSpeechController,
+  type BrowserSpeechController,
+} from '@/voice/speech';
 
 type Message = {
   id: number;
@@ -35,7 +39,7 @@ const initialMessages: Message[] = [
   {
     id: 1,
     role: 'jarvis',
-    text: 'All systems nominal. I am ready for your command.',
+    text: 'All systems are online.',
   },
 ];
 
@@ -91,13 +95,20 @@ function Home() {
   const [tasks, setTasks] = useState<JarvisTask[]>(loadTasks);
   const [notes, setNotes] = useState<JarvisNote[]>(loadNotes);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const speechControllerRef = useRef<BrowserSpeechController | null>(null);
 
   useEffect(() => saveTasks(tasks), [tasks]);
   useEffect(() => saveNotes(notes), [notes]);
   useEffect(
-    () => () => {
-      recognitionRef.current?.stop();
-      window.speechSynthesis?.cancel();
+    () => {
+      const speechController = createBrowserSpeechController(setIsSpeaking);
+      speechControllerRef.current = speechController;
+
+      return () => {
+        recognitionRef.current?.stop();
+        speechController.dispose();
+        speechControllerRef.current = null;
+      };
     },
     [],
   );
@@ -110,24 +121,11 @@ function Home() {
   };
 
   const stopSpeaking = () => {
-    window.speechSynthesis?.cancel();
-    setIsSpeaking(false);
+    speechControllerRef.current?.stopSpeaking();
   };
 
   const speakResponse = (text: string) => {
-    if (
-      typeof window === 'undefined' ||
-      !window.speechSynthesis ||
-      typeof SpeechSynthesisUtterance === 'undefined'
-    ) {
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+    speechControllerRef.current?.speakResponse(text);
   };
 
   const processCommand = async (rawCommand: string, mode: InteractionMode) => {

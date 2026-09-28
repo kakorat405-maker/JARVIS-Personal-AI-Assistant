@@ -17,7 +17,7 @@ export function tryConversation(command: string): SkillResult | null {
   if (/^(hi|hello|hey)$/.test(withoutJarvis)) {
     return {
       skill: 'conversation',
-      response: "Hello. I'm online and ready.",
+      response: "Hello. I'm online.",
     };
   }
 
@@ -36,21 +36,21 @@ export function tryConversation(command: string): SkillResult | null {
     return {
       skill: 'conversation',
       response:
-        "I can currently handle calculations, date and time, timers, notes, tasks, and basic voice commands. I'm still learning new skills.",
+        'I can handle calculations, timers, notes, tasks, and basic voice commands.',
     };
   }
 
   if (/\b(i created you|i made you|you were created by me)\b/.test(normalized)) {
     return {
       skill: 'conversation',
-      response: "Then you're my creator. I'm ready for the next command.",
+      response: 'Understood, creator.',
     };
   }
 
   if (/\b(are you there|are you online|are you working)\b/.test(normalized)) {
     return {
       skill: 'conversation',
-      response: 'Online and ready.',
+      response: 'Online.',
     };
   }
 
@@ -64,7 +64,7 @@ export function tryConversation(command: string): SkillResult | null {
   if (/\bhow are you\b/.test(normalized)) {
     return {
       skill: 'conversation',
-      response: "All systems are nominal. I'm ready to assist.",
+      response: 'All systems are online.',
     };
   }
 

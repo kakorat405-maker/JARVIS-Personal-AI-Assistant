@@ -1,0 +1,1 @@
+- [Browser speech voices](browser-speech-voices.md) — SpeechSynthesis voices can load asynchronously; refresh on `voiceschanged` and keep the device default as fallback.
