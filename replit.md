@@ -1,6 +1,6 @@
-# [Project name]
+# JARVIS
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A dark, futuristic personal assistant interface for sending typed commands and preparing for future voice and AI capabilities.
 
 ## Run & Operate
 
@@ -22,23 +22,31 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/jarvis/src/App.tsx` — single-page JARVIS command center and local interaction state
+- `artifacts/jarvis/src/index.css` — dark visual system, responsive layout, and microphone motion
+- `artifacts/api-server` — shared API server scaffold, not used by the current frontend-only experience
+- `lib/api-spec/openapi.yaml` — shared API contract, unchanged for this first UI build
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The first version is frontend-only; commands and placeholder responses stay local so the interface can be refined before adding services.
+- Conversation entries use a small typed message model and local response function, leaving clear seams for voice recognition and an AI response layer.
+- The microphone is an explicit listening-state placeholder rather than a browser speech API integration.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Shows JARVIS online status and a command-center shell.
+- Accepts typed commands via Send or Enter.
+- Appends user commands and local JARVIS responses to the live channel.
+- Provides a responsive microphone interaction placeholder with animated standby/listening states.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the first version polished and intentionally simple; do not overcomplicate the frontend.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Voice recognition, AI responses, reminders, calendar integration, and additional skills are intentionally not connected yet.
 
 ## Pointers
 
