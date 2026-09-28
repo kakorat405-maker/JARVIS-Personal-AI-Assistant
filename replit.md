@@ -1,6 +1,6 @@
 # JARVIS
 
-A dark, futuristic personal assistant interface for sending typed or spoken commands through modular local skills.
+A dark, futuristic voice-first personal assistant interface for sending spoken or typed commands through modular local skills.
 
 ## Run & Operate
 
@@ -22,9 +22,9 @@ A dark, futuristic personal assistant interface for sending typed or spoken comm
 
 ## Where things live
 
-- `artifacts/jarvis/src/App.tsx` — single-page JARVIS command center, speech entry point, and conversation state
+- `artifacts/jarvis/src/App.tsx` — voice-first JARVIS command center, speech entry/output, optional chat drawer, and conversation state
 - `artifacts/jarvis/src/skills/router.ts` — command router that dispatches to local skills
-- `artifacts/jarvis/src/skills/` — calculator, date/time, timer, tasks, notes, and local persistence modules
+- `artifacts/jarvis/src/skills/` — calculator, date/time, timer, tasks, notes, conversation, and local persistence modules
 - `artifacts/jarvis/src/index.css` — dark visual system, responsive layout, and microphone motion
 - `artifacts/api-server` — shared API server scaffold, not used by the current frontend-only experience
 - `lib/api-spec/openapi.yaml` — shared API contract, unchanged for this first UI build
@@ -34,6 +34,7 @@ A dark, futuristic personal assistant interface for sending typed or spoken comm
 - The current version is frontend-only; commands are handled locally so no provider key or external AI service is required.
 - All typed and recognized speech commands enter the same `processCommand` pipeline before routing.
 - Skills are isolated behind `routeCommand`, so an AI skill can be added as another route without rewriting the interface.
+- Voice responses are spoken with browser SpeechSynthesis while their text remains in the shared conversation log.
 - Tasks and notes persist in browser local storage; timers run in the current session.
 
 ## Product
@@ -41,8 +42,10 @@ A dark, futuristic personal assistant interface for sending typed or spoken comm
 - Shows JARVIS online status and a command-center shell.
 - Accepts typed commands via Send or Enter.
 - Accepts browser speech-recognition transcripts through the same command pipeline.
+- Opens an optional slide-in chat drawer for typed interaction; the default screen remains voice-first.
 - Supports calculator, current date/time, timer, task creation/listing, and note creation/listing commands.
-- Appends user commands and local JARVIS responses to the live channel with a thinking state.
+- Handles greetings and capability questions locally, then falls back gracefully for unknown commands.
+- Appends user commands and local JARVIS responses to the live channel with listening, thinking, speaking, and online states.
 
 ## User preferences
 
@@ -50,6 +53,7 @@ A dark, futuristic personal assistant interface for sending typed or spoken comm
 
 ## Gotchas
 
+- Browser speech-recognition support and microphone permission vary by browser; the chat drawer remains the fallback input.
 - AI responses, calendar, web search, weather, and device utilities are intentionally not connected yet.
 
 ## Pointers

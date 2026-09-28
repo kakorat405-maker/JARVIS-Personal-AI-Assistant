@@ -1,6 +1,15 @@
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Activity, ArrowUp, Command, LoaderCircle, Mic, Radio } from 'lucide-react';
+import {
+  Activity,
+  ArrowUp,
+  Command,
+  LoaderCircle,
+  MessageCircle,
+  Mic,
+  Radio,
+  X,
+} from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -17,6 +26,9 @@ type Message = {
   text: string;
 };
 
+type InteractionMode = 'voice' | 'chat';
+type AssistantStatus = 'online' | 'listening' | 'thinking' | 'speaking';
+
 const queryClient = new QueryClient();
 
 const initialMessages: Message[] = [
@@ -27,17 +39,68 @@ const initialMessages: Message[] = [
   },
 ];
 
+function ConversationFeed({
+  messages,
+  isThinking,
+  compact = false,
+}: {
+  messages: Message[];
+  isThinking: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`message-list${compact ? ' message-list-compact' : ''}`} aria-live="polite">
+      {messages.map((message) => (
+        <article
+          className={`message ${message.role}`}
+          key={message.id}
+          data-testid={`message-${message.role}-${message.id}`}
+        >
+          <span className="message-marker" aria-hidden="true" />
+          <div>
+            <div className="message-meta">
+              {message.role === 'user' ? 'You / command' : 'JARVIS / response'}
+            </div>
+            <p className="message-text">{message.text}</p>
+          </div>
+        </article>
+      ))}
+      {isThinking && (
+        <article className="message jarvis thinking" data-testid="message-thinking">
+          <span className="message-marker" aria-hidden="true" />
+          <div>
+            <div className="message-meta">
+              <LoaderCircle size={11} className="thinking-icon" aria-hidden="true" />
+              JARVIS / thinking
+            </div>
+            <p className="message-text">Working through that now...</p>
+          </div>
+        </article>
+      )}
+    </div>
+  );
+}
+
 function Home() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [command, setCommand] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [tasks, setTasks] = useState<JarvisTask[]>(loadTasks);
   const [notes, setNotes] = useState<JarvisNote[]>(loadNotes);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
   useEffect(() => saveTasks(tasks), [tasks]);
   useEffect(() => saveNotes(notes), [notes]);
+  useEffect(
+    () => () => {
+      recognitionRef.current?.stop();
+      window.speechSynthesis?.cancel();
+    },
+    [],
+  );
 
   const addJarvisMessage = (text: string) => {
     setMessages((current) => [
@@ -46,9 +109,34 @@ function Home() {
     ]);
   };
 
-  const processCommand = async (rawCommand: string) => {
+  const stopSpeaking = () => {
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
+  };
+
+  const speakResponse = (text: string) => {
+    if (
+      typeof window === 'undefined' ||
+      !window.speechSynthesis ||
+      typeof SpeechSynthesisUtterance === 'undefined'
+    ) {
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const processCommand = async (rawCommand: string, mode: InteractionMode) => {
     const trimmedCommand = rawCommand.trim();
     if (!trimmedCommand || isThinking) return;
+
+    if (mode === 'voice') {
+      stopSpeaking();
+    }
 
     const commandId = Date.now();
     setMessages((current) => [
@@ -69,21 +157,32 @@ function Home() {
     if (result.notes) setNotes(result.notes);
     addJarvisMessage(result.response);
     setIsThinking(false);
+    if (mode === 'voice') {
+      speakResponse(result.response);
+    }
 
     if (result.timer) {
+      const timerMessage = `Timer complete${result.timer.label ? `: ${result.timer.label}` : ''}.`;
       window.setTimeout(() => {
-        addJarvisMessage(`Timer complete${result.timer?.label ? `: ${result.timer.label}` : ''}.`);
+        addJarvisMessage(timerMessage);
+        if (mode === 'voice') {
+          speakResponse(timerMessage);
+        }
       }, result.timer.durationMs);
     }
   };
 
-  const sendCommand = (event?: FormEvent) => {
+  const sendChatCommand = (event?: FormEvent) => {
     event?.preventDefault();
-    void processCommand(command);
+    void processCommand(command, 'chat');
   };
 
   const toggleMicrophone = () => {
     if (isThinking) return;
+
+    if (isSpeaking) {
+      stopSpeaking();
+    }
 
     if (isListening) {
       recognitionRef.current?.stop();
@@ -104,7 +203,7 @@ function Home() {
     recognition.lang = 'en-US';
     recognition.onresult = (event) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim();
-      if (transcript) void processCommand(transcript);
+      if (transcript) void processCommand(transcript, 'voice');
     };
     recognition.onerror = (event) => {
       setIsListening(false);
@@ -118,8 +217,31 @@ function Home() {
 
     recognitionRef.current = recognition;
     setIsListening(true);
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      setIsListening(false);
+      recognitionRef.current = null;
+      addJarvisMessage('I could not access the microphone. Check your browser permission and try again.');
+    }
   };
+
+  const status: AssistantStatus = isListening
+    ? 'listening'
+    : isThinking
+      ? 'thinking'
+      : isSpeaking
+        ? 'speaking'
+        : 'online';
+  const statusLabel = status === 'online' ? 'JARVIS ONLINE' : `JARVIS ${status.toUpperCase()}`;
+  const orbCaption =
+    status === 'listening'
+      ? 'Listening'
+      : status === 'thinking'
+        ? 'Thinking'
+        : status === 'speaking'
+          ? 'Speaking'
+          : 'Tap to speak';
 
   return (
     <div className="jarvis-shell">
@@ -133,7 +255,7 @@ function Home() {
             <p className="system-label">System state</p>
             <div className="side-status" data-testid="status-online">
               <span className="status-dot" aria-hidden="true" />
-              Online / ready
+              {statusLabel}
             </div>
           </div>
           <div className="side-footer">
@@ -150,7 +272,20 @@ function Home() {
             <p className="eyebrow" data-testid="text-page-context">
               Personal command center
             </p>
-            <span className="topbar-time">SESSION 01 / SECURE</span>
+            <div className="topbar-actions">
+              <button
+                className="chat-launcher"
+                type="button"
+                onClick={() => setIsChatOpen(true)}
+                aria-expanded={isChatOpen}
+                aria-controls="jarvis-chat-drawer"
+                data-testid="button-open-chat"
+              >
+                <MessageCircle size={14} aria-hidden="true" />
+                Chat
+              </button>
+              <span className="topbar-time">SESSION 01 / SECURE</span>
+            </div>
           </header>
 
           <section className="hero" aria-labelledby="hero-title">
@@ -162,25 +297,32 @@ function Home() {
                 <span>for you?</span>
               </h1>
               <p>
-                Speak when you are ready. Type a command below to open a channel with your
-                personal assistant.
+                Tap the orb and speak naturally. JARVIS will listen, think, and respond.
               </p>
             </div>
 
             <div className="orb-stage">
               <div className="mic-wrap">
                 <button
-                  className={`mic-button${isListening ? ' is-listening' : ''}`}
+                  className={`mic-button${isListening ? ' is-listening' : ''}${isThinking ? ' is-thinking' : ''}${isSpeaking ? ' is-speaking' : ''}`}
                   type="button"
                   onClick={toggleMicrophone}
-                  aria-label={isListening ? 'Microphone listening' : 'Activate microphone'}
+                  aria-label={
+                    isListening
+                      ? 'Stop listening'
+                      : isThinking
+                        ? 'JARVIS is thinking'
+                        : isSpeaking
+                          ? 'Stop speaking and listen'
+                          : 'Activate microphone'
+                  }
                   aria-pressed={isListening}
                   data-testid="button-microphone"
                 >
                   <Mic size={34} strokeWidth={1.35} />
                 </button>
                 <span className="mic-caption" data-testid="status-microphone">
-                  {isListening ? 'Listening for input' : 'Voice channel standby'}
+                  {orbCaption}
                 </span>
               </div>
             </div>
@@ -194,66 +336,73 @@ function Home() {
               </h2>
               <span data-testid="text-message-count">{messages.length} transmissions</span>
             </div>
-            <div className="message-list" aria-live="polite">
-              {messages.map((message) => (
-                <article
-                  className={`message ${message.role}`}
-                  key={message.id}
-                  data-testid={`message-${message.role}-${message.id}`}
-                >
-                  <span className="message-marker" aria-hidden="true" />
-                  <div>
-                    <div className="message-meta">
-                      {message.role === 'user' ? 'You / command' : 'JARVIS / response'}
-                    </div>
-                    <p className="message-text">{message.text}</p>
-                  </div>
-                </article>
-              ))}
-              {isThinking && (
-                <article className="message jarvis thinking" data-testid="message-thinking">
-                  <span className="message-marker" aria-hidden="true" />
-                  <div>
-                    <div className="message-meta">
-                      <LoaderCircle size={11} className="thinking-icon" aria-hidden="true" />
-                      JARVIS / thinking
-                    </div>
-                    <p className="message-text">Working through that now...</p>
-                  </div>
-                </article>
-              )}
-            </div>
+            <ConversationFeed
+              messages={messages.slice(-3)}
+              isThinking={isThinking}
+              compact
+            />
           </section>
-
-          <form className="composer" onSubmit={sendCommand}>
+        </main>
+      </div>
+      <button
+        className={`chat-backdrop${isChatOpen ? ' is-open' : ''}`}
+        type="button"
+        onClick={() => setIsChatOpen(false)}
+        aria-label="Close chat panel"
+        tabIndex={isChatOpen ? 0 : -1}
+      />
+      <aside
+        id="jarvis-chat-drawer"
+        className={`chat-drawer${isChatOpen ? ' is-open' : ''}`}
+        aria-hidden={!isChatOpen}
+        aria-label="JARVIS chat panel"
+      >
+        <div className="chat-drawer-header">
+          <div>
+            <p className="eyebrow">Optional channel</p>
+            <h2>Chat with JARVIS</h2>
+          </div>
+          <button
+            className="chat-close"
+            type="button"
+            onClick={() => setIsChatOpen(false)}
+            aria-label="Close chat"
+            data-testid="button-close-chat"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="chat-drawer-body">
+          <ConversationFeed messages={messages} isThinking={isThinking} />
+          <form className="composer chat-composer" onSubmit={sendChatCommand}>
             <Command size={17} color="#6e8790" aria-hidden="true" />
             <input
               type="text"
               value={command}
               onChange={(event) => setCommand(event.target.value)}
               placeholder="Enter a command..."
-              aria-label="Command input"
-              data-testid="input-command"
+              aria-label="Chat command input"
+              data-testid="input-chat-command"
             />
             <button
               className="send-button"
               type="submit"
-              disabled={!command.trim()}
-              data-testid="button-send"
+              disabled={!command.trim() || isThinking}
+              data-testid="button-chat-send"
             >
               Send
               <ArrowUp size={15} strokeWidth={2.4} />
             </button>
           </form>
           <div className="composer-hint">
-            <span>Press enter to transmit</span>
+            <span>Shared local skill channel</span>
             <span>
               <Activity size={10} style={{ verticalAlign: 'middle', marginRight: 5 }} />
-              Local response mode
+              {statusLabel}
             </span>
           </div>
-        </main>
-      </div>
+        </div>
+      </aside>
     </div>
   );
 }

@@ -4,6 +4,7 @@ export type SkillName =
   | 'timer'
   | 'tasks'
   | 'notes'
+  | 'conversation'
   | 'fallback';
 
 export type JarvisTask = {
