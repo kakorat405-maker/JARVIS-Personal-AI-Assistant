@@ -1,6 +1,6 @@
 # JARVIS
 
-A dark, futuristic personal assistant interface for sending typed commands and preparing for future voice and AI capabilities.
+A dark, futuristic personal assistant interface for sending typed or spoken commands through modular local skills.
 
 ## Run & Operate
 
@@ -22,23 +22,27 @@ A dark, futuristic personal assistant interface for sending typed commands and p
 
 ## Where things live
 
-- `artifacts/jarvis/src/App.tsx` — single-page JARVIS command center and local interaction state
+- `artifacts/jarvis/src/App.tsx` — single-page JARVIS command center, speech entry point, and conversation state
+- `artifacts/jarvis/src/skills/router.ts` — command router that dispatches to local skills
+- `artifacts/jarvis/src/skills/` — calculator, date/time, timer, tasks, notes, and local persistence modules
 - `artifacts/jarvis/src/index.css` — dark visual system, responsive layout, and microphone motion
 - `artifacts/api-server` — shared API server scaffold, not used by the current frontend-only experience
 - `lib/api-spec/openapi.yaml` — shared API contract, unchanged for this first UI build
 
 ## Architecture decisions
 
-- The first version is frontend-only; commands and placeholder responses stay local so the interface can be refined before adding services.
-- Conversation entries use a small typed message model and local response function, leaving clear seams for voice recognition and an AI response layer.
-- The microphone is an explicit listening-state placeholder rather than a browser speech API integration.
+- The current version is frontend-only; commands are handled locally so no provider key or external AI service is required.
+- All typed and recognized speech commands enter the same `processCommand` pipeline before routing.
+- Skills are isolated behind `routeCommand`, so an AI skill can be added as another route without rewriting the interface.
+- Tasks and notes persist in browser local storage; timers run in the current session.
 
 ## Product
 
 - Shows JARVIS online status and a command-center shell.
 - Accepts typed commands via Send or Enter.
-- Appends user commands and local JARVIS responses to the live channel.
-- Provides a responsive microphone interaction placeholder with animated standby/listening states.
+- Accepts browser speech-recognition transcripts through the same command pipeline.
+- Supports calculator, current date/time, timer, task creation/listing, and note creation/listing commands.
+- Appends user commands and local JARVIS responses to the live channel with a thinking state.
 
 ## User preferences
 
@@ -46,7 +50,7 @@ A dark, futuristic personal assistant interface for sending typed commands and p
 
 ## Gotchas
 
-- Voice recognition, AI responses, reminders, calendar integration, and additional skills are intentionally not connected yet.
+- AI responses, calendar, web search, weather, and device utilities are intentionally not connected yet.
 
 ## Pointers
 

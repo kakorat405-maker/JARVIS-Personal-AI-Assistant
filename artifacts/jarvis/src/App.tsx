@@ -1,11 +1,15 @@
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Activity, ArrowUp, Command, Mic, Radio } from 'lucide-react';
+import { Activity, ArrowUp, Command, LoaderCircle, Mic, Radio } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { routeCommand } from '@/skills/router';
+import { loadNotes, loadTasks, saveNotes, saveTasks } from '@/skills/storage';
+import type { JarvisNote, JarvisTask } from '@/skills/types';
+import type { JarvisSpeechRecognition as BrowserSpeechRecognition } from '@/types/speech-recognition';
 
 type Message = {
   id: number;
@@ -23,43 +27,98 @@ const initialMessages: Message[] = [
   },
 ];
 
-function getLocalResponse(command: string) {
-  const normalized = command.toLowerCase();
-
-  if (normalized.includes('time')) {
-    return 'Local time module is standing by. A real-time skill can plug in here next.';
-  }
-  if (normalized.includes('remind') || normalized.includes('task')) {
-    return 'Task interface acknowledged. Reminder skills are ready to be connected.';
-  }
-  if (normalized.includes('calendar') || normalized.includes('schedule')) {
-    return 'Calendar channel acknowledged. No external connections are active yet.';
-  }
-  return `Command received: “${command}”. I am ready for a connected response layer.`;
-}
-
 function Home() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [command, setCommand] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [tasks, setTasks] = useState<JarvisTask[]>(loadTasks);
+  const [notes, setNotes] = useState<JarvisNote[]>(loadNotes);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
-  const sendCommand = (event?: FormEvent) => {
-    event?.preventDefault();
-    const trimmedCommand = command.trim();
-    if (!trimmedCommand) return;
+  useEffect(() => saveTasks(tasks), [tasks]);
+  useEffect(() => saveNotes(notes), [notes]);
+
+  const addJarvisMessage = (text: string) => {
+    setMessages((current) => [
+      ...current,
+      { id: Date.now() + Math.random(), role: 'jarvis', text },
+    ]);
+  };
+
+  const processCommand = async (rawCommand: string) => {
+    const trimmedCommand = rawCommand.trim();
+    if (!trimmedCommand || isThinking) return;
 
     const commandId = Date.now();
     setMessages((current) => [
       ...current,
       { id: commandId, role: 'user', text: trimmedCommand },
-      { id: commandId + 1, role: 'jarvis', text: getLocalResponse(trimmedCommand) },
     ]);
     setCommand('');
+    setIsThinking(true);
+
+    await new Promise((resolve) => window.setTimeout(resolve, 320));
+    const result = routeCommand(trimmedCommand, {
+      tasks,
+      notes,
+      now: new Date(),
+    });
+
+    if (result.tasks) setTasks(result.tasks);
+    if (result.notes) setNotes(result.notes);
+    addJarvisMessage(result.response);
+    setIsThinking(false);
+
+    if (result.timer) {
+      window.setTimeout(() => {
+        addJarvisMessage(`Timer complete${result.timer?.label ? `: ${result.timer.label}` : ''}.`);
+      }, result.timer.durationMs);
+    }
+  };
+
+  const sendCommand = (event?: FormEvent) => {
+    event?.preventDefault();
+    void processCommand(command);
   };
 
   const toggleMicrophone = () => {
+    if (isThinking) return;
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Recognition) {
+      addJarvisMessage(
+        'Speech recognition is not available in this browser. You can type your command instead.',
+      );
+      return;
+    }
+
+    const recognition: BrowserSpeechRecognition = new Recognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript?.trim();
+      if (transcript) void processCommand(transcript);
+    };
+    recognition.onerror = (event) => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      addJarvisMessage(`Voice channel error: ${event.error}. You can type your command instead.`);
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
     setIsListening(true);
-    window.setTimeout(() => setIsListening(false), 1600);
+    recognition.start();
   };
 
   return (
@@ -151,6 +210,18 @@ function Home() {
                   </div>
                 </article>
               ))}
+              {isThinking && (
+                <article className="message jarvis thinking" data-testid="message-thinking">
+                  <span className="message-marker" aria-hidden="true" />
+                  <div>
+                    <div className="message-meta">
+                      <LoaderCircle size={11} className="thinking-icon" aria-hidden="true" />
+                      JARVIS / thinking
+                    </div>
+                    <p className="message-text">Working through that now...</p>
+                  </div>
+                </article>
+              )}
             </div>
           </section>
 
