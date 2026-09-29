@@ -1,4 +1,6 @@
-type SpeakingStateListener = (isSpeaking: boolean) => void;
+import { createBrowserSpeechProvider } from './browserSpeech';
+import { createNeuralSpeechProvider } from './neuralSpeech';
+import type { SpeakingStateListener } from './types';
 
 export type BrowserSpeechController = {
   speakResponse: (text: string) => void;
@@ -6,111 +8,60 @@ export type BrowserSpeechController = {
   dispose: () => void;
 };
 
-const preferredVoiceNames = [
-  'natural',
-  'neural',
-  'enhanced',
-  'premium',
-  'google us english',
-  'microsoft aria',
-  'samantha',
-  'karen',
-  'daniel',
-];
-
-function selectPreferredVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  const englishVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith('en'));
-  const candidates =
-    englishVoices.length > 0 ? englishVoices : voices.filter((voice) => voice.default);
-  if (candidates.length === 0) return null;
-
-  return [...candidates].sort((left, right) => {
-    const score = (voice: SpeechSynthesisVoice) => {
-      const name = voice.name.toLowerCase();
-      const language = voice.lang.toLowerCase();
-      const preferredNameIndex = preferredVoiceNames.findIndex((preferred) =>
-        name.includes(preferred),
-      );
-
-      return (
-        (preferredNameIndex === -1 ? 0 : preferredVoiceNames.length - preferredNameIndex) * 10 +
-        (language === 'en-us' ? 8 : language.startsWith('en-') ? 4 : 0) +
-        (voice.default ? 2 : 0) -
-        (name.includes('compact') || name.includes('espeak') ? 4 : 0)
-      );
-    };
-
-    return score(right) - score(left);
-  })[0];
-}
-
 export function createBrowserSpeechController(
   onSpeakingStateChange: SpeakingStateListener,
 ): BrowserSpeechController {
-  if (
-    typeof window === 'undefined' ||
-    !window.speechSynthesis ||
-    typeof SpeechSynthesisUtterance === 'undefined'
-  ) {
-    return {
-      speakResponse: () => undefined,
-      stopSpeaking: () => onSpeakingStateChange(false),
-      dispose: () => undefined,
-    };
-  }
-
-  const synthesis = window.speechSynthesis;
-  let preferredVoice = selectPreferredVoice(synthesis.getVoices());
-  let speechSequence = 0;
-
-  const refreshVoices = () => {
-    preferredVoice = selectPreferredVoice(synthesis.getVoices());
-  };
-
-  synthesis.addEventListener('voiceschanged', refreshVoices);
-
-  const stopSpeaking = () => {
-    speechSequence += 1;
-    synthesis.cancel();
-    onSpeakingStateChange(false);
-  };
+  const browserProvider = createBrowserSpeechProvider(onSpeakingStateChange);
+  const neuralProvider = createNeuralSpeechProvider(onSpeakingStateChange);
+  let neuralAvailable = true;
+  let requestSequence = 0;
+  let disposed = false;
 
   const speakResponse = (text: string) => {
     const trimmedText = text.trim();
     if (!trimmedText) return;
 
-    speechSequence += 1;
-    const sequence = speechSequence;
-    synthesis.cancel();
-    onSpeakingStateChange(false);
+    stopSpeaking();
+    const sequence = requestSequence;
 
-    const utterance = new SpeechSynthesisUtterance(trimmedText);
-    if (preferredVoice) utterance.voice = preferredVoice;
-    utterance.rate = 0.96;
-    utterance.pitch = 1;
-    utterance.onstart = () => {
-      if (sequence === speechSequence) onSpeakingStateChange(true);
-    };
-    utterance.onend = () => {
-      if (sequence === speechSequence) onSpeakingStateChange(false);
-    };
-    utterance.onerror = () => {
-      if (sequence === speechSequence) onSpeakingStateChange(false);
-    };
+    void (async () => {
+      if (neuralAvailable) {
+        try {
+          await neuralProvider.speak(trimmedText);
+          if (sequence === requestSequence) return;
+        } catch (error) {
+          if (sequence !== requestSequence || isSpeechStop(error)) return;
+          neuralAvailable = false;
+        }
+      }
 
-    try {
-      synthesis.speak(utterance);
-    } catch {
-      if (sequence === speechSequence) onSpeakingStateChange(false);
-    }
+      if (disposed || sequence !== requestSequence) return;
+      try {
+        await browserProvider.speak(trimmedText);
+      } catch {
+        onSpeakingStateChange(false);
+      }
+    })();
   };
+
+  const stopSpeaking = () => {
+    requestSequence += 1;
+    neuralProvider.stop();
+    browserProvider.stop();
+    onSpeakingStateChange(false);
+  };
+
+  const isSpeechStop = (error: unknown) =>
+    error instanceof Error && error.message === 'Speech stopped';
 
   return {
     speakResponse,
     stopSpeaking,
     dispose: () => {
-      synthesis.removeEventListener('voiceschanged', refreshVoices);
+      disposed = true;
       stopSpeaking();
+      neuralProvider.dispose();
+      browserProvider.dispose();
     },
   };
 }
