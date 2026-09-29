@@ -1,0 +1,172 @@
+Now add a second visual polish pass to the JARVIS interface.
+
+IMPORTANT:
+This is still a VISUAL-ONLY task.
+
+Do NOT modify:
+
+- backend
+- command routing
+- skills
+- conversation logic
+- microphone recognition
+- TTS
+- /api/tts
+- voice provider
+- application behavior
+
+Keep all functionality exactly as it currently works.
+
+Build on the UI changes from the previous step.
+
+1. AI CORE POLISH
+
+Make the central JARVIS orb feel more advanced.
+
+Add subtle:
+
+- concentric rings
+- rotating segments
+- orbital particles
+- glow layers
+- pulse animation
+- inner light movement
+
+Keep the animation slow and premium.
+
+Do not make it flashy.
+
+2. STATE TRANSITIONS
+
+Make transitions between:
+
+IDLE
+LISTENING
+PROCESSING
+SPEAKING
+ERROR
+
+smooth and visually distinct.
+
+Use the existing application states.
+
+Do not create duplicate state logic.
+
+3. SPEAKING VISUALIZER
+
+When JARVIS is speaking, make the central orb visually react.
+
+Use a lightweight simulated waveform or energy ring tied to the existing SPEAKING state.
+
+It does NOT need to analyze actual audio.
+
+The purpose is visual feedback.
+
+4. LISTENING VISUALIZER
+
+When the microphone is listening:
+
+- increase orb brightness
+- animate outer rings
+- show subtle energy movement
+- clearly communicate that JARVIS is listening
+
+5. TRANSMISSION FEED
+
+Improve the LIVE CHANNEL.
+
+New messages should appear with a subtle fade/slide animation.
+
+Make the feed feel like a live AI transmission rather than a normal chat log.
+
+Keep it compact.
+
+6. CHAT DRAWER
+
+Keep the existing Chat button and functionality.
+
+Only improve its appearance:
+
+- glass/deep-dark panel
+- subtle cyan borders
+- technical header
+- smooth opening animation
+- polished message styling
+- better mobile layout
+
+Do not change how chat works.
+
+7. SYSTEM DETAILS
+
+Add a few subtle technical indicators around the interface, for example:
+
+VOICE CHANNEL
+ONLINE
+READY
+SECURE SESSION
+TRANSMISSION
+
+Do not invent fake capabilities.
+
+Keep these elements small and understated.
+
+8. MICRO-INTERACTIONS
+
+Add subtle:
+
+- hover effects
+- tap feedback
+- glowing borders
+- button transitions
+- status pulses
+- message animations
+
+Avoid excessive effects.
+
+9. MOBILE POLISH
+
+Test specifically on small Android screens.
+
+Make sure:
+
+- orb remains centered
+- microphone remains easy to tap
+- heading remains readable
+- live channel remains accessible
+- chat button remains accessible
+- no content is clipped
+- no horizontal scrolling occurs
+
+10. PERFORMANCE
+
+Prefer CSS/SVG.
+
+Do not introduce a heavy animation framework.
+
+Keep animations smooth on mid-range Android phones.
+
+11. FINAL VERIFICATION
+
+Run:
+
+- type-check
+- production build
+- application startup check
+
+Verify:
+
+- microphone still works
+- voice commands still work
+- JARVIS still speaks
+- chat still works
+- all existing skills still work
+
+Do not change functionality.
+
+Report:
+
+- files changed
+- visual improvements made
+- type-check result
+- build result
+- mobile verification result

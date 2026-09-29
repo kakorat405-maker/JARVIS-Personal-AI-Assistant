@@ -234,12 +234,12 @@ function Home() {
   const statusLabel = status === 'online' ? 'JARVIS ONLINE' : `JARVIS ${status.toUpperCase()}`;
   const orbCaption =
     status === 'listening'
-      ? 'Listening'
+      ? 'Listening...'
       : status === 'thinking'
-        ? 'Thinking'
+        ? 'Processing...'
         : status === 'speaking'
-          ? 'Speaking'
-          : 'Tap to speak';
+          ? 'JARVIS speaking...'
+          : 'Voice channel ready';
 
   return (
     <div className="jarvis-shell">
@@ -267,10 +267,20 @@ function Home() {
 
         <main className="jarvis-main">
           <header className="topbar">
-            <p className="eyebrow" data-testid="text-page-context">
-              Personal command center
-            </p>
+            <div className="topbar-identity">
+              <p className="eyebrow" data-testid="text-page-context">
+                Personal command center
+              </p>
+              <span className="topbar-system-label">PERSONAL AI SYSTEM</span>
+            </div>
             <div className="topbar-actions">
+              <div className="topbar-signals" aria-label="Session information">
+                <span className="topbar-signal">
+                  <span className="signal-dot" aria-hidden="true" />
+                  VOICE READY
+                </span>
+                <span className="topbar-signal">SECURE SESSION</span>
+              </div>
               <button
                 className="chat-launcher"
                 type="button"
@@ -300,7 +310,20 @@ function Home() {
             </div>
 
             <div className="orb-stage">
-              <div className="mic-wrap">
+              <div className={`orb-field orb-field-${status}`} aria-hidden="true">
+                <span className="orb-particle orb-particle-one" />
+                <span className="orb-particle orb-particle-two" />
+                <span className="orb-particle orb-particle-three" />
+                <span className="orb-crosshair orb-crosshair-horizontal" />
+                <span className="orb-crosshair orb-crosshair-vertical" />
+              </div>
+              <div className={`mic-wrap mic-wrap-${status}`}>
+                <span className="orb-ring orb-ring-outer" aria-hidden="true" />
+                <span className="orb-ring orb-ring-mid" aria-hidden="true" />
+                <span className="orb-ring orb-ring-inner" aria-hidden="true" />
+                <span className="orb-segment orb-segment-a" aria-hidden="true" />
+                <span className="orb-segment orb-segment-b" aria-hidden="true" />
+                <span className="orb-segment orb-segment-c" aria-hidden="true" />
                 <button
                   className={`mic-button${isListening ? ' is-listening' : ''}${isThinking ? ' is-thinking' : ''}${isSpeaking ? ' is-speaking' : ''}`}
                   type="button"
@@ -317,9 +340,12 @@ function Home() {
                   aria-pressed={isListening}
                   data-testid="button-microphone"
                 >
+                  <span className="mic-core" aria-hidden="true">
+                    <span className="mic-core-sheen" />
+                  </span>
                   <Mic size={34} strokeWidth={1.35} />
                 </button>
-                <span className="mic-caption" data-testid="status-microphone">
+                <span className="mic-caption" aria-live="polite" data-testid="status-microphone">
                   {orbCaption}
                 </span>
               </div>
