@@ -1,0 +1,6 @@
+{
+  "name": "JARVIS",
+  "description": "A dark, futuristic voice-first personal assistant interface for sending spoken or typed commands through modular local skills.",
+  "requestFramePermissions": ["microphone"],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
