@@ -1,0 +1,34 @@
+<escape>{
+"$schema": "https://openapi.vercel.sh/vercel.json",
+"services": {
+"api-server": {
+"root": "artifacts/api-server",
+"framework": "express"
+},
+"jarvis": {
+"root": "artifacts/jarvis",
+"framework": "vite",
+"outputDirectory": "dist/public",
+"rewrites": [
+{
+"source": "/(.)",
+"destination": "/index.html"
+}
+]
+}
+},
+"rewrites": [
+{
+"source": "/api/(.)",
+"destination": {
+"service": "api-server"
+}
+},
+{
+"source": "/(.*)",
+"destination": {
+"service": "jarvis"
+}
+}
+]
+}</escape>
